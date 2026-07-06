@@ -24,7 +24,9 @@ class Package(models.Model):
     cost_price = models.DecimalField(max_digits=12, decimal_places=2)
     sell_price = models.DecimalField(max_digits=12, decimal_places=2)
     reseller_price = models.DecimalField(max_digits=12, decimal_places=2)
+    category = models.CharField(max_length=80, default="Currency", help_text="e.g. Currency, Pass, Bundle")
     is_active = models.BooleanField(default=True)
+
 
     @property
     def margin(self):

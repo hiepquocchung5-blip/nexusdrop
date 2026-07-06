@@ -116,3 +116,19 @@ export function useLedger() {
     queryFn: async () => (await api.get("/wallet/ledger/")).data,
   });
 }
+
+export function useLookupPlayer(slug, player_id, zone_id) {
+  return useQuery({
+    queryKey: ["games", slug, "lookup", player_id, zone_id],
+    queryFn: async () => {
+      const params = { player_id };
+      if (zone_id) params.zone_id = zone_id;
+      const { data } = await api.get(`/games/${slug}/lookup/`, { params });
+      return data;
+    },
+    enabled: !!slug && !!player_id && player_id.trim().length >= 4,
+    retry: false,
+    staleTime: 30_000,
+  });
+}
+

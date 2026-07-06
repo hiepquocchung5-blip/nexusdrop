@@ -15,7 +15,7 @@ import {
   LogIn,
 } from "lucide-react";
 import clsx from "clsx";
-import { useGame, useCreateOrder, useSubmitProof } from "../lib/queries";
+import { useGame, useCreateOrder, useSubmitProof, useLookupPlayer } from "../lib/queries";
 import { extractError } from "../lib/api";
 import { identitySchema } from "../lib/validation";
 import { useAuth } from "../lib/auth";
@@ -106,11 +106,68 @@ export default function GameDetail() {
   const [file, setFile] = useState(null);
   const [note, setNote] = useState("");
 
+  // Category Filtering
+  const [activeCategory, setActiveCategory] = useState("");
+  const categories = useMemo(() => {
+    if (!game?.packages) return [];
+    return Array.from(new Set(game.packages.map((p) => p.category || "Currency")));
+  }, [game]);
+
+  useMemo(() => {
+    if (categories.length > 0 && !activeCategory) {
+      setActiveCategory(categories[0]);
+    }
+  }, [categories, activeCategory]);
+
+  const filteredPackages = useMemo(() => {
+    if (!game?.packages) return [];
+    const cat = activeCategory || categories[0] || "";
+    return game.packages.filter((p) => (p.category || "Currency") === cat);
+  }, [game, categories, activeCategory]);
+
+  // Player Verification Setup
+  const [lookupTriggered, setLookupTriggered] = useState(false);
+  const [lookupPlayerId, setLookupPlayerId] = useState("");
+  const [lookupZoneId, setLookupZoneId] = useState("");
+  const [verifiedName, setVerifiedName] = useState("");
+
+  const { data: lookupData, isFetching: isVerifying, isError: lookupFailed } = useLookupPlayer(
+    slug,
+    lookupPlayerId,
+    lookupZoneId
+  );
+
+  useMemo(() => {
+    if (lookupData?.player_name) {
+      setVerifiedName(lookupData.player_name);
+    }
+  }, [lookupData]);
+
+  const handleIdentityChange = (field, value) => {
+    setIdentity((s) => ({ ...s, [field]: value }));
+    setVerifiedName("");
+    setLookupTriggered(false);
+    setLookupPlayerId("");
+    setLookupZoneId("");
+  };
+
+  const handleVerify = () => {
+    if (!identity.player_id.trim()) {
+      setFieldErrors({ player_id: "Player ID is required." });
+      return;
+    }
+    setFieldErrors({});
+    setLookupPlayerId(identity.player_id.trim());
+    setLookupZoneId(identity.zone_id.trim());
+    setLookupTriggered(true);
+  };
+
   const createOrder = useCreateOrder();
   const submitProof = useSubmitProof();
 
   const art = useMemo(() => gameArt(slug), [slug]);
   const zoneRequired = /server|zone/i.test(game?.region_hint || "");
+
 
   if (isLoading) {
     return (
@@ -233,8 +290,27 @@ export default function GameDetail() {
               <Card className="p-6">
                 <h2 className="font-display text-lg font-semibold">Choose a package</h2>
                 <p className="mt-1 text-sm text-muted">Prices shown are final, taxes included.</p>
+                {categories.length > 1 && (
+                  <div className="mt-4 flex flex-wrap gap-2 border-b border-line pb-4">
+                    {categories.map((cat) => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setActiveCategory(cat)}
+                        className={clsx(
+                          "rounded-xl px-3.5 py-1.5 text-xs font-semibold border transition-all",
+                          (activeCategory || categories[0]) === cat
+                            ? "bg-violet/15 border-violet/50 text-violet-soft font-bold shadow-[0_0_8px_rgba(124,92,255,0.25)]"
+                            : "bg-white/[0.01] border-line text-muted hover:border-violet/40 hover:bg-white/5"
+                        )}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <div className="mt-5 grid gap-3">
-                  {game.packages.map((p) => (
+                  {filteredPackages.map((p) => (
                     <PackageOption key={p.id} pkg={p} selected={pkg?.id === p.id} onSelect={setPkg} />
                   ))}
                 </div>
@@ -258,9 +334,7 @@ export default function GameDetail() {
                       placeholder="e.g. 12345678"
                       className="pl-9"
                       value={identity.player_id}
-                      onChange={(e) =>
-                        setIdentity((s) => ({ ...s, player_id: e.target.value }))
-                      }
+                      onChange={(e) => handleIdentityChange("player_id", e.target.value)}
                       error={fieldErrors.player_id}
                     />
                   </div>
@@ -271,14 +345,47 @@ export default function GameDetail() {
                       placeholder={zoneRequired ? "e.g. 2214" : "Leave blank if not applicable"}
                       className="pl-9"
                       value={identity.zone_id}
-                      onChange={(e) =>
-                        setIdentity((s) => ({ ...s, zone_id: e.target.value }))
-                      }
+                      onChange={(e) => handleIdentityChange("zone_id", e.target.value)}
                       error={fieldErrors.zone_id}
                       hint={game.region_hint}
                     />
                   </div>
-                  <div className="flex gap-3">
+                  
+                  <div className="pt-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="w-full text-xs font-semibold py-2"
+                      onClick={handleVerify}
+                      loading={isVerifying}
+                      disabled={identity.player_id.trim().length < 4}
+                    >
+                      Verify In-Game Nickname
+                    </Button>
+                  </div>
+
+                  {lookupTriggered && (
+                    <div className="rounded-xl border border-line p-3 bg-white/[0.01] transition-all">
+                      {isVerifying ? (
+                        <div className="flex items-center gap-2 text-xs text-muted">
+                          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-violet border-t-transparent" />
+                          Verifying identity with game servers...
+                        </div>
+                      ) : lookupFailed ? (
+                        <div className="flex items-center gap-2 text-xs text-red">
+                          <AlertCircle className="size-4 shrink-0 text-red" />
+                          Verification failed: Check Player ID & Server ID format.
+                        </div>
+                      ) : verifiedName ? (
+                        <div className="flex items-center gap-2 text-xs text-emerald">
+                          <Check className="size-4 shrink-0 text-emerald" />
+                          Verified Nickname: <strong className="text-ink font-semibold">{verifiedName}</strong>
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 pt-2">
                     <Button type="button" variant="ghost" onClick={() => setStep(0)}>
                       <ArrowLeft className="size-4" /> Back
                     </Button>
@@ -293,6 +400,7 @@ export default function GameDetail() {
                 </form>
               </Card>
             )}
+
 
             {step === 2 && order && (
               <Card className="p-6">
@@ -357,7 +465,9 @@ export default function GameDetail() {
               <Row label="Amount" value={pkg ? pkg.amount_label : "—"} />
               {identity.player_id && <Row label="Player ID" value={identity.player_id} />}
               {identity.zone_id && <Row label="Zone ID" value={identity.zone_id} />}
+              {verifiedName && <Row label="Nickname" value={verifiedName} />}
             </div>
+
             <div className="mt-5 flex items-center justify-between border-t border-line pt-5">
               <span className="text-sm text-muted">Total</span>
               <span className="font-display text-2xl font-bold text-gradient">

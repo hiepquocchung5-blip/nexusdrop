@@ -13,7 +13,8 @@ class PackageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Package
-        fields = ["id", "title", "sku", "amount_label", "sell_price", "reseller_price", "margin"]
+        fields = ["id", "title", "sku", "amount_label", "sell_price", "reseller_price", "margin", "category"]
+
 
 
 class GameSerializer(serializers.ModelSerializer):

@@ -110,11 +110,36 @@ export async function mockRequest(config) {
   }
 
   if (method === "get" && url === "/games/") return ok(config, games);
+  if (method === "get" && url.startsWith("/games/") && url.includes("/lookup/")) {
+    const slug = url.split("/").filter(Boolean)[1];
+    const game = games.find((item) => item.slug === slug);
+    if (!game) return reject(config, 404, { detail: "Game not found." });
+    const urlObj = new URL(config.url, "http://localhost");
+    const player_id = urlObj.searchParams.get("player_id") || "";
+    const zone_id = urlObj.searchParams.get("zone_id") || "";
+    if (!player_id) return reject(config, 400, { detail: "player_id is required." });
+    let hash = 0;
+    const str = `${slug}-${player_id}-${zone_id}`;
+    for (let i = 0; i < str.length; i++) {
+      hash = (hash << 5) - hash + str.charCodeAt(i);
+      hash |= 0;
+    }
+    hash = Math.abs(hash);
+    const nicknames = {
+      "mobile-legends": ["AlucardPro", "LaylaGod", "FannyGod", "TigrealKing", "GusionMain", "MiyaQueen"],
+      "pubg-mobile": ["SniperGhost", "ShroudClon", "PochinkiKing", "AWM_Slayer", "WinnerDinner"],
+      "free-fire": ["AlokBooyah", "ChronoGod", "HeadshotOP", "FF_Master", "RushKing"]
+    };
+    const gameNicks = nicknames[slug] || ["GamerPro", "NexusWarrior", "AlphaZero"];
+    const nickname = gameNicks[hash % gameNicks.length] + `_${player_id.slice(0, 4)}`;
+    return ok(config, { player_name: nickname });
+  }
   if (method === "get" && url.startsWith("/games/")) {
     const slug = url.split("/").filter(Boolean)[1];
     const game = games.find((item) => item.slug === slug);
     return game ? ok(config, game) : reject(config, 404, { detail: "Not found." });
   }
+
 
   if (method === "get" && url === "/orders/") return ok(config, orders);
   if (method === "get" && url.startsWith("/orders/")) {

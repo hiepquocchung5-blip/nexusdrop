@@ -114,3 +114,23 @@ def test_dispatch_order_real_api_success(mock_post, package):
         assert order.status == Order.Status.COMPLETED
         assert order.supplier_reference == "real-ref-999"
 
+
+from rest_framework.test import APIClient
+
+@pytest.mark.django_db
+def test_lookup_player_mock(package):
+    client = APIClient()
+    response = client.get(f"/api/games/{package.game.slug}/lookup/", {"player_id": "Player_999", "zone_id": "1234"})
+    assert response.status_code == 200
+    assert "player_name" in response.data
+    assert isinstance(response.data["player_name"], str)
+    assert len(response.data["player_name"]) > 0
+
+
+@pytest.mark.django_db
+def test_lookup_player_missing_params(package):
+    client = APIClient()
+    response = client.get(f"/api/games/{package.game.slug}/lookup/")
+    assert response.status_code == 400
+
+
