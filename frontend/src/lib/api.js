@@ -1,5 +1,4 @@
 import axios from "axios";
-import { mockMode, mockRequest, shouldUseMock } from "./mockApi";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
@@ -27,12 +26,6 @@ export const api = axios.create({
   baseURL: BASE_URL,
   headers: { "Content-Type": "application/json" },
 });
-
-api.defaults.adapter = async (config) => {
-  const adapter = axios.getAdapter("xhr");
-  if (mockMode === "mock") return mockRequest(config);
-  return adapter(config);
-};
 
 api.interceptors.request.use((config) => {
   const access = tokenStore.access;
@@ -66,9 +59,6 @@ api.interceptors.response.use(
         window.dispatchEvent(new CustomEvent("nexusdrop:signed-out"));
       }
     }
-    if (shouldUseMock(error)) {
-      return mockRequest(original || error.config || {});
-    }
     return Promise.reject(error);
   }
 );
@@ -87,4 +77,5 @@ export function extractError(error, fallback = "Something went wrong.") {
   return parts.join(" · ") || fallback;
 }
 
-export { BASE_URL, mockMode };
+export { BASE_URL };
+

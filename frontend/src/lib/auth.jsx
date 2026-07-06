@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { api, mockMode, tokenStore } from "./api";
+import { api, tokenStore } from "./api";
 import { decodeJwt, isExpired } from "./jwt";
+
 
 const AuthContext = createContext(null);
 
@@ -45,10 +46,11 @@ export function AuthProvider({ children }) {
       isAuthenticated: !!user,
       signIn,
       signOut,
-      isMockApi: mockMode === "mock" || mockMode === "auto",
+      isMockApi: false,
     }),
     [user, signIn, signOut]
   );
+
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
