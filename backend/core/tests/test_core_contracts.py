@@ -51,3 +51,66 @@ def test_order_identity_validation_accepts_empty_zone_id(package):
 
     serializer.is_valid()
     assert "zone_id" not in serializer.errors
+
+
+from unittest.mock import patch
+from core.models import Order
+from core.tasks import dispatch_order_to_supplier
+from django.conf import settings
+
+@pytest.mark.django_db
+def test_dispatch_order_mock_fallback(package):
+    order = Order.objects.create(
+        package=package,
+        player_id="Player_123",
+        zone_id="1234",
+        status=Order.Status.PROCESSING,
+        quoted_price=Decimal("2.49")
+    )
+    
+    with patch.object(settings, "SUPPLIER_API_BASE_URL", "https://supplier.example.test"):
+        status = dispatch_order_to_supplier(str(order.id))
+        order.refresh_from_db()
+        assert status == Order.Status.COMPLETED
+        assert order.status == Order.Status.COMPLETED
+        assert order.supplier_reference.startswith("mock-")
+
+
+@pytest.mark.django_db
+@patch("core.tasks.requests.post")
+def test_dispatch_order_real_api_success(mock_post, package):
+    order = Order.objects.create(
+        package=package,
+        player_id="Player_123",
+        zone_id="1234",
+        status=Order.Status.PROCESSING,
+        quoted_price=Decimal("2.49")
+    )
+    
+    mock_post.return_value.status_code = 201
+    mock_post.return_value.json.return_value = {"reference": "real-ref-999"}
+    
+    with patch.object(settings, "SUPPLIER_API_BASE_URL", "https://real-api.supplier.com"), \
+         patch.object(settings, "SUPPLIER_API_KEY", "secret-key-123"):
+        status = dispatch_order_to_supplier(str(order.id))
+        
+        mock_post.assert_called_once_with(
+            "https://real-api.supplier.com/api/v1/orders",
+            json={
+                "order_id": str(order.id),
+                "sku": package.sku,
+                "player_id": "Player_123",
+                "zone_id": "1234"
+            },
+            headers={
+                "Authorization": "Bearer secret-key-123",
+                "Content-Type": "application/json"
+            },
+            timeout=15
+        )
+        
+        order.refresh_from_db()
+        assert status == Order.Status.COMPLETED
+        assert order.status == Order.Status.COMPLETED
+        assert order.supplier_reference == "real-ref-999"
+

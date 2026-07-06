@@ -9,4 +9,6 @@ redis==5.0.4
 Pillow==10.3.0
 pytest==8.2.1
 pytest-django==4.8.0
+requests==2.32.3
+
 
