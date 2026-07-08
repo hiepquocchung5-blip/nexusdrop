@@ -34,6 +34,13 @@ export function AuthProvider({ children }) {
     return data;
   }, []);
 
+  const signInWithTokens = useCallback((access, refresh) => {
+    tokenStore.set({ access, refresh });
+    const claims = decodeJwt(access);
+    if (claims?.username) localStorage.setItem("nexusdrop.username", claims.username);
+    setUser(readUser());
+  }, []);
+
   useEffect(() => {
     const handler = () => setUser(null);
     window.addEventListener("nexusdrop:signed-out", handler);
@@ -45,10 +52,11 @@ export function AuthProvider({ children }) {
       user,
       isAuthenticated: !!user,
       signIn,
+      signInWithTokens,
       signOut,
       isMockApi: false,
     }),
-    [user, signIn, signOut]
+    [user, signIn, signInWithTokens, signOut]
   );
 
 

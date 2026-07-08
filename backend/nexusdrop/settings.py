@@ -7,7 +7,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-secret-change-me")
 DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() == "true"
-ALLOWED_HOSTS = [host.strip() for host in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")]
+ALLOWED_HOSTS = [host.strip() for host in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,.ngrok-free.dev,.ngrok-free.app,.ngrok.app").split(",")]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -91,6 +91,11 @@ CORS_ALLOWED_ORIGINS = [
     for origin in os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5173").split(",")
     if origin.strip()
 ]
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "http://localhost:5173").split(",")
+    if origin.strip()
+]
 
 CELERY_BROKER_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
@@ -100,4 +105,15 @@ CELERY_TASK_ALWAYS_EAGER = os.getenv("CELERY_TASK_ALWAYS_EAGER", "False").lower(
 CELERY_TASK_EAGER_PROPAGATES = True
 SUPPLIER_API_BASE_URL = os.getenv("SUPPLIER_API_BASE_URL", "")
 SUPPLIER_API_KEY = os.getenv("SUPPLIER_API_KEY", "")
-
+G2BULK_API_KEY = os.getenv("G2BULK_API_KEY", SUPPLIER_API_KEY)
+G2BULK_WEBHOOK_SECRET = os.getenv("G2BULK_WEBHOOK_SECRET", "")
+G2BULK_WEBHOOK_URL = os.getenv("G2BULK_WEBHOOK_URL", "")
+NGROK_DOMAIN = os.getenv("NGROK_DOMAIN", "").strip()
+DEFAULT_FRONTEND_URL = "http://localhost:5173"
+FRONTEND_URL = os.getenv("FRONTEND_URL", DEFAULT_FRONTEND_URL).strip()
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+TELEGRAM_WEBHOOK_SECRET = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")

@@ -13,4 +13,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
+RUN find /app -type d -name '__pycache__' -prune -exec rm -rf {} + \
+    && find /app -type f -name '*.pyc' -delete
 

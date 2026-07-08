@@ -1,31 +1,59 @@
 from django.core.management.base import BaseCommand
 
-from core.models import Game, Package
+from core.catalog import GAMES, POINT_REWARDS, PRODUCTS, category_for, cost_price, reseller_price, reward_point_cost, sku_for
+from core.models import Game, Package, PointReward
 
 
 class Command(BaseCommand):
-    help = "Seed demo games and top-up packages."
+    help = "Seed the catalog converted from the Java Game Shop backend."
 
     def handle(self, *args, **options):
-        catalog = [
-            ("Mobile Legends", "mobile-legends", "Server ID required", [("86 Diamonds", "MLBB-86", "86 + 8 bonus", 1.85, 2.49, 2.25), ("172 Diamonds", "MLBB-172", "172 + 16 bonus", 3.62, 4.79, 4.35)]),
-            ("PUBG Mobile", "pubg-mobile", "Character ID only", [("60 UC", "PUBG-60", "60 UC", 0.78, 1.19, 1.05), ("325 UC", "PUBG-325", "300 + 25 UC", 3.85, 5.49, 4.95)]),
-            ("Free Fire", "free-fire", "Player UID only", [("100 Diamonds", "FF-100", "100 diamonds", 0.92, 1.39, 1.20), ("310 Diamonds", "FF-310", "310 diamonds", 2.71, 3.99, 3.60)]),
-        ]
-        for name, slug, hint, packages in catalog:
-            game, _ = Game.objects.update_or_create(slug=slug, defaults={"name": name, "region_hint": hint, "is_active": True})
-            for title, sku, amount_label, cost, sell, reseller in packages:
-                Package.objects.update_or_create(
-                    sku=sku,
-                    defaults={
-                        "game": game,
-                        "title": title,
-                        "amount_label": amount_label,
-                        "cost_price": cost,
-                        "sell_price": sell,
-                        "reseller_price": reseller,
-                        "is_active": True,
-                    },
-                )
-        self.stdout.write(self.style.SUCCESS("Seeded NexusDrop demo catalog."))
+        games = {}
+        for name, slug, hint in GAMES:
+            games[slug], _ = Game.objects.update_or_create(
+                slug=slug,
+                defaults={"name": name, "region_hint": hint, "is_active": True},
+            )
 
+        packages = {}
+        active_skus = set()
+        for slug, title, amount_label, amount in PRODUCTS:
+            sku = sku_for(slug, title)
+            active_skus.add(sku)
+            package, _ = Package.objects.update_or_create(
+                sku=sku,
+                defaults={
+                    "game": games[slug],
+                    "title": title,
+                    "amount_label": amount_label,
+                    "cost_price": cost_price(amount),
+                    "sell_price": amount,
+                    "reseller_price": reseller_price(amount),
+                    "category": category_for(title),
+                    "requires_zone": slug in {"mobile-legends", "magic-chess-gogo"},
+                    "is_active": True,
+                },
+            )
+            packages[(slug, title)] = package
+
+        Package.objects.filter(game__slug__in=games.keys()).exclude(sku__in=active_skus).update(is_active=False)
+
+        for code, slug, package_title, provider_usd, requires_zone, image in POINT_REWARDS:
+            package = packages.get((slug, package_title))
+            if not package:
+                self.stderr.write(f"Skipping reward {code}: package not found")
+                continue
+            PointReward.objects.update_or_create(
+                code=code,
+                defaults={
+                    "game": games[slug],
+                    "package": package,
+                    "provider_usd": provider_usd,
+                    "point_cost": reward_point_cost(provider_usd),
+                    "requires_zone": requires_zone,
+                    "image": image,
+                    "is_active": True,
+                },
+            )
+
+        self.stdout.write(self.style.SUCCESS(f"Seeded {len(games)} games, {len(packages)} packages, and {len(POINT_REWARDS)} point rewards."))

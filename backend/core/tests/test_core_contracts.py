@@ -21,15 +21,15 @@ def test_mutate_wallet_rejects_overdraft():
 
 @pytest.fixture
 def package():
-    game = Game.objects.create(name="Mobile Legends", slug="mobile-legends")
+    game = Game.objects.create(name="Free Fire", slug="free-fire")
     return Package.objects.create(
         game=game,
-        title="86 Diamonds",
-        sku="MLBB-86",
-        amount_label="86 + 8 bonus",
+        title="110 Diamonds",
+        sku="FF-110",
+        amount_label="110",
         cost_price=Decimal("1.85"),
-        sell_price=Decimal("2.49"),
-        reseller_price=Decimal("2.25"),
+        sell_price=Decimal("3800.00"),
+        reseller_price=Decimal("3686.00"),
     )
 
 
@@ -46,11 +46,30 @@ def test_order_identity_validation_rejects_invalid_player_id(package):
 @pytest.mark.django_db
 def test_order_identity_validation_accepts_empty_zone_id(package):
     serializer = OrderCreateSerializer(
-        data={"package": package.id, "player_id": "Player_1234", "zone_id": ""}
+        data={"package": package.id, "player_id": "1234567", "zone_id": ""}
     )
 
     serializer.is_valid()
     assert "zone_id" not in serializer.errors
+
+
+@pytest.mark.django_db
+def test_mobile_legends_requires_numeric_zone_id():
+    game = Game.objects.create(name="Mobile Legends", slug="mobile-legends")
+    package = Package.objects.create(
+        game=game,
+        title="86",
+        sku="MLBB-86",
+        amount_label="86",
+        cost_price=Decimal("4664.00"),
+        sell_price=Decimal("5300.00"),
+        reseller_price=Decimal("5141.00"),
+        requires_zone=True,
+    )
+    serializer = OrderCreateSerializer(data={"package": package.id, "player_id": "1234567", "zone_id": ""})
+
+    assert not serializer.is_valid()
+    assert "zone_id" in serializer.errors
 
 
 from unittest.mock import patch
@@ -120,7 +139,7 @@ from rest_framework.test import APIClient
 @pytest.mark.django_db
 def test_lookup_player_mock(package):
     client = APIClient()
-    response = client.get(f"/api/games/{package.game.slug}/lookup/", {"player_id": "Player_999", "zone_id": "1234"})
+    response = client.get(f"/api/games/{package.game.slug}/lookup/", {"player_id": "1234567", "zone_id": "1234"})
     assert response.status_code == 200
     assert "player_name" in response.data
     assert isinstance(response.data["player_name"], str)

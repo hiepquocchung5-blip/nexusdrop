@@ -110,6 +110,14 @@ export function useWallet() {
   });
 }
 
+export function useProfile(options = {}) {
+  return useQuery({
+    queryKey: ["profile", "me"],
+    queryFn: async () => (await api.get("/profile/me/")).data,
+    enabled: options.enabled ?? true,
+  });
+}
+
 export function useLedger() {
   return useQuery({
     queryKey: ["wallet", "ledger"],
@@ -129,6 +137,25 @@ export function useLookupPlayer(slug, player_id, zone_id) {
     enabled: !!slug && !!player_id && player_id.trim().length >= 4,
     retry: false,
     staleTime: 30_000,
+  });
+}
+
+export function usePointRewards() {
+  return useQuery({
+    queryKey: ["point-rewards"],
+    queryFn: async () => (await api.get("/point-rewards/")).data,
+  });
+}
+
+export function useRedeemPoints() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload) => (await api.post("/point-rewards/redeem/", payload)).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["profile", "me"] });
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["point-redemptions"] });
+    },
   });
 }
 

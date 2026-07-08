@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Game, LedgerEntry, Order, Package, PaymentProof, Wallet
+from .models import CustomerProfile, Game, LedgerEntry, Order, Package, PaymentProof, PointRedemption, PointReward, Wallet
 
 
 class PackageInline(admin.TabularInline):
@@ -17,7 +17,7 @@ class GameAdmin(admin.ModelAdmin):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ("id", "package", "player_id", "status", "quoted_price", "created_at")
+    list_display = ("id", "package", "player_id", "status", "quoted_price", "payment_method", "created_at")
     list_filter = ("status", "package__game")
     search_fields = ("id", "player_id", "zone_id", "supplier_reference")
 
@@ -30,4 +30,6 @@ class PaymentProofAdmin(admin.ModelAdmin):
 
 admin.site.register(Wallet)
 admin.site.register(LedgerEntry)
-
+admin.site.register(CustomerProfile)
+admin.site.register(PointReward)
+admin.site.register(PointRedemption)

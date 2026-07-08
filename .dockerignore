@@ -1,0 +1,10 @@
+.git
+.agents
+.codex
+**/__pycache__/
+**/.pytest_cache/
+**/node_modules/
+**/dist/
+**/.env
+**/db.sqlite3
+**/media/
